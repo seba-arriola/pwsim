@@ -2,6 +2,9 @@ import sys
 import os
 import pandas as pd
 
+#THIS CODE SHOULD BE USE LIKE 
+# >> python3 check_input_params.py /path_to_params_file/params_file 
+#
 float_params = ["Mw","alpha" ,"beta","rho" ,"dsigma","lonhip" ,"lathip" ,"zhip" ,"b_p" ,"b_sv" ,"b_sh" ,"rho_tf" ]
 
 int_params = ["applyTF","ttime","sps","threads","seed","radpat","calcfs","N_simul","only_SH"]
