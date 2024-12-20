@@ -7,11 +7,14 @@ Beta version, implemented and moderately tested.
 This C implementation was mostly programmed by Sebastian Arriola, any doubt, complaint, claim or bug report, please write to 
 
 sarriola@csn.uchile.cl 
+
 seba.arriola.s@gmail.com
 
 
 For this project, we used some code obtained from the web, particularly from:
+
 https://www.geeksforgeeks.org/
+
 https://www.embeddedrelated.com/
 
 
