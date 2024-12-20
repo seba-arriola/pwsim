@@ -194,9 +194,9 @@ R0 R1 R2 R3 R4 ... RN-1
 P1 P2 P3 P4 P5 ... PN
 
 
-Qso => S-wave quality factor coefficient, Q(f) = Qso*f**Qexp
+- Qso, S-wave quality factor coefficient, Q(f) = Qso*f**Qexp
 
-Qpo => P-wave quality factor coefficient, Q(f) = Qpo*f**Qexp
+- Qpo, P-wave quality factor coefficient, Q(f) = Qpo*f**Qexp
 
 
 
