@@ -1,0 +1,12 @@
+PH0000	13.4000 42.6000 0 0.035 2.0 params/models/NTCA.dat 0
+PH0050	13.3600 42.7400 0 0.035 2.0 params/models/asd 0
+PH0100	13.3200 42.9000 0 0.035 2.0 params/models/NTCA.dat 1
+PH0150	13.2600 42.6400 0 0.035 2.0 params/models/asd 0
+PH0200	13.2200 42.8000 0 0.035 2.0 params/models/asd 0
+PH0250	13.1800 42.9600 0 0.035 2.0 params/models/asd 0
+PH0300	13.1200 42.7000 0 0.035 2.0 params/models/asd 0
+PH0350	13.0800 42.8600 0 0.035 2.0 params/models/NTCA.dat 1
+PH0400	13.0200 42.6000 0 0.035 2.0 params/models/asd 0
+PH0450	12.9800 42.7600 0 0.035 2.0 params/models/asd 0
+PH0500	12.9400 42.9200 0 0.035 2.0 params/models/NTCA.dat 0
+PH0546	12.9000 43.0000 0 0.035 2.0 params/models/asd 0
