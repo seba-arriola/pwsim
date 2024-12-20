@@ -113,7 +113,8 @@ attenuation_file params/attenuation.dat 	(file)
 
 
 
-Important to note that this file should only contain a variable name followed by its numerical value.
+Important to note that this file should only contain a variable name followed by its value.
+
 
 Mw => Moment magnitude of the event giving rise to the waveforms.
 
