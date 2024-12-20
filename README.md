@@ -56,31 +56,57 @@ Once compiled, if the compilation was successful, a file called pwsim is generat
 
 params_file corresponds to a file containing a series of parameters. An example for this parameter file is given below:
 
+
 Mw 7.0 			(float)
+
 ttime 100 		(int)
+
 sps 100 		(int)
+
 alpha 7.0 		(float)
+
 beta 4.0 		(float)
+
 rho 3.0 		(float)
+
 dsigma 100.0 		(float)
+
 lonhip 10.00 		(float)
+
 lathip 10.00 		(float)
+
 zhip 10.0 		(float)
+
 threads 8 		(int)
+
 ffm source.dat 		(file)
+
 velmodel velmodel.dat 	(file)
+
 stations stations.txt 	(file)
+
 applyTF 0 		(int, option)
+
 rho_tf 1.8 		(float)
+
 b_p 0.05 		(float)
+
 b_sv 0.05 		(float)
+
 b_sh 0.05 		(float)
+
 seed 0 			(int)
+
 radpat 0 		(int, option)
+
 calcfs 1 		(int, option)
+
 N_simul 100 	(int)
+
 only_SH 0 	(int, option)
+
 envelope_file params/envelope.dat 	(file)
+
 attenuation_file params/attenuation.dat 	(file)
 
 
