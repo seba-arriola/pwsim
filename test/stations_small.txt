@@ -1,0 +1,3 @@
+STA0	13.4000 42.6000 0 0.035 2.0 test/model_amps.dat 2
+STA1	13.3600 42.7400 0 0.035 2.0 test/model_layers.dat 1
+STA2	13.3200 42.9000 0 0.035 2.0 test/model_amps.dat 0

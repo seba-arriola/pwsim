@@ -204,3 +204,30 @@ If everything is correct, the program runs and displays the total time used in s
 
 
 In the main directory where you execute the program, a directory called "output/" is created with one file per station, called "synt_STATION_NAME.dat" for the accelerations. These files have 3 columns, where the first one corresponds to the NS component, the second one to the EW component, and the third and last one corresponds to the UD component.
+
+If `calcfs 2` is used, each file has 6 columns instead of 3: the first three are the NS/EW/UD components with the free-surface factors applied (calcfs 1), followed by the same three components without the free-surface factors (calcfs 0).
+
+# 5.- Corrections and validation
+
+This version includes a number of bug fixes with respect to earlier releases. The most relevant ones are:
+
+- Fixed an incorrect averaging of the Gaussian white noise over the `N_simul` simulations. Previously the accumulated noise was divided by `N_simul` inside the loop, which suppressed the amplitude of the noise. Now the noise is accumulated and divided only once at the end. **This changes the numerical values of the generated accelerograms with respect to previous versions.**
+- Fixed several memory-safety issues (heap buffer overflow in the station names, out-of-bounds reads in the attenuation function, uninitialized memory in the Fourier transform input, matrix free of an uninitialized pointer for single-layer local models) that could produce segmentation faults depending on the machine/compiler.
+- Fixed several memory leaks (attenuation function, P/SV and SH transfer functions, radiation-pattern auxiliary arrays).
+- `applyTF 1` now leaves stations marked with `0` (no transfer function) unmodified instead of zeroing them out.
+- The code now declares global variables with `extern` in the header and defines them once in `src/globals.c`, so it links correctly with modern GCC (>= 10) that defaults to `-fno-common`.
+- Input file reading is now robust: `fscanf` return values are checked (no infinite loops or dropped last lines), empty/comment lines are handled, and station/model paths are not truncated.
+
+## Validation
+
+A test script and a reduced input set are provided to validate the code:
+
+```
+make sanitize                                   # build with AddressSanitizer + UBSan
+./run_tests.sh                                  # quick suite (reduced inputs, all code paths)
+./run_tests.sh full                             # quick suite + full params under ASan
+./run_tests.sh valgrind                         # quick suite + valgrind on reduced inputs
+make valgrind                                   # run full params under valgrind (slow)
+```
+
+The reduced inputs under `test/` exercise every code path (`applyTF` 0/1 with station transfer-function flags 0/1/2, `calcfs` 1/2 and `radpat` 0/1) while keeping runtimes short enough for the sanitizers. The full parameter set (`params/params_nsf_full.dat`) is also validated under AddressSanitizer.

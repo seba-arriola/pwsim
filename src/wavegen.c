@@ -5,6 +5,8 @@ int NumberOfPulsingSubs(int i)
 {
     double pulsing_percent = 1.;
     double R_hypo2 = sqrt( pow((xhip - X[i]),2.) + pow((yhip - Y[i]),2.) + pow((zhip - Z[i]),2.) )/1000.;
+    if ((mean_length+mean_width) == 0.0)
+        return 1;
     int Rmax = R_hypo2/((mean_length+mean_width)/2.); 
     int Rmin = Rmax - (pulsing_percent/2.)*N;
 
@@ -88,6 +90,8 @@ void calc()
 		f[i]=i*fnyq/(nnyq-1);
 	}
 
+	free(NoOfActiveSubs);
+
 	return;
 
 }
@@ -165,9 +169,10 @@ double P(double f,double R,double Q0,double v)
 	double Z=1.0;
 	double Q = Q0*pow((f+0.00001),Qexp); //input parameter
 	
-	int aux_ind,j ; 
+	int aux_ind = N_attpar;
+	int j ; 
 	
-	for(j=0;j<=N_attpar;j++)
+	for(j=0;j<N_attpar;j++)
 	{
 		if(R>=R_att_aux_1[j] && R<R_att_aux_1[j+1])
 		{
@@ -177,7 +182,7 @@ double P(double f,double R,double Q0,double v)
 	}
 	
 	
-	double *R_aux2=(double *)malloc( (aux_ind+1)*sizeof(double ));
+	double R_aux2[N_attpar+1];
 	R_aux2[aux_ind]=R;
 	R_aux2[0]=R_att[0];
 	
@@ -192,10 +197,9 @@ double P(double f,double R,double Q0,double v)
 		Z = Z*pow(( R_aux2[j-1]   / R_aux2[j]     ),p_att[j-1]   );
 	}
 		
+	double result = Z*exp(-M_PI*f*R/(Q*v));
 
-	return Z*exp(-M_PI*f*R/(Q*v));
-	
-	free(R_aux2);
+	return result;
 }
 
 /*
@@ -224,7 +228,7 @@ int readTFfromVmodel(double **vs_sta, double **vp_sta,double **espesor_sta,char 
 {
 	
 	int L;
-	int C,lee;
+	int C;
 	L=countLines(filename);
 	*espesor_sta=(double*)malloc(L*sizeof(double));
 	*vp_sta=(double*)malloc(L*sizeof(double));
@@ -240,21 +244,21 @@ int readTFfromVmodel(double **vs_sta, double **vp_sta,double **espesor_sta,char 
 	C=0;
 
 	//read local velocity model
-	do
+	while(fscanf(archivo,"%lf  %lf  %lf", &A1,&A2,&A3)==3)
 	{
-		fscanf(archivo,"%lf  %lf  %lf", &A1,&A2,&A3);
-		lee=feof(archivo);
-		
-		if (lee==1) 
-			break;  //stops if cannot read
-			
 		(*espesor_sta)[C]=A1;
 		(*vp_sta)[C]=A2;
 		(*vs_sta)[C]=A3;
 		C++;
-	}while(1);
-	fclose(archivo); 
-	return L;
+	}
+	fclose(archivo);
+
+	if(C == 0)
+	{
+		printf("Local velocity model file %s has no valid layers\n", filename);
+		exit(EXIT_FAILURE);
+	}
+	return C;
 	
 }
 
@@ -277,14 +281,14 @@ void generateWaveform(char *sta_name, char *sta_model, int stat, double x_est, d
 
 
 	//arrays for transfer functions
-	double complex *FT_SV;
-	double complex *FT_P;
-	double complex *FT_SH;
-	double complex **FT_P_SV;
-	double *vs_sta, *vp_sta,*espesor_sta;
+	double complex *FT_SV = NULL;
+	double complex *FT_P = NULL;
+	double complex *FT_SH = NULL;
+	double complex **FT_P_SV = NULL;
+	double *vs_sta = NULL, *vp_sta = NULL, *espesor_sta = NULL;
 
-	double complex *FT_H;
-	double complex *FT_V;
+	double complex *FT_H = NULL;
+	double complex *FT_V = NULL;
 
 
     double max_ts = 0.0;
@@ -303,28 +307,33 @@ void generateWaveform(char *sta_name, char *sta_model, int stat, double x_est, d
 		angle_tf=angle_tf+theta[i]/N;
 	}
 
-	//if you need to apply TF for some stations, this functions must be d
+	//if you need to apply TF for some stations, these functions must be done
 	switch(applyTF)
 	{
 		case 1:
-			switch(stat)
-				case 1:
-				{
-					int L=readTFfromVmodel(&vs_sta, &vp_sta,&espesor_sta,sta_model);
-					f[0]=f[1];
-					FT_P_SV = SATF_P_SV(f,nnyq,vs_sta,vp_sta,espesor_sta,L,am_p,am_sv,angle_tf,rho_tf);
-					f[0]=0.0;
-					FT_P  = FT_P_SV[0];
-					FT_SV = FT_P_SV[1];
+			if(stat == 1)
+			{
+				int L=readTFfromVmodel(&vs_sta, &vp_sta,&espesor_sta,sta_model);
+				double *f_tf = (double*)malloc(nnyq*sizeof(double));
+				memcpy(f_tf, f, nnyq*sizeof(double));
+				f_tf[0]=f_tf[1];
+				FT_P_SV = SATF_P_SV(f_tf,nnyq,vs_sta,vp_sta,espesor_sta,L,am_p,am_sv,angle_tf,rho_tf);
+				free(f_tf);
+				FT_P  = FT_P_SV[0];
+				FT_SV = FT_P_SV[1];
+				free(FT_P_SV);
+				FT_P_SV = NULL;
 
-					FT_SH = SATF_SH(f,nnyq,vs_sta,espesor_sta,L,am_sh,rho_tf);
-				}
-				case 2:
-				{
-					double complex ** Amps = interpolateFA(sta_model);
-					FT_H=Amps[0];
-					FT_V=Amps[1];
-				}
+				FT_SH = SATF_SH(f,nnyq,vs_sta,espesor_sta,L,am_sh,rho_tf);
+			}
+			else if(stat == 2)
+			{
+				double complex ** Amps = interpolateFA(sta_model);
+				FT_H=Amps[0];
+				FT_V=Amps[1];
+				free(Amps);
+			}
+			break;
 	}
 
 	//For long distance stations, it could be necessary to calculate max_ts
@@ -341,17 +350,24 @@ void generateWaveform(char *sta_name, char *sta_model, int stat, double x_est, d
 	double *total_ac_E;
 	double *total_ac_V;
 
+	double *total_ac_N_nofs = NULL;
+	double *total_ac_E_nofs = NULL;
+	double *total_ac_V_nofs = NULL;
 
 	calacv(calcfs,stat, &total_ac_N,&total_ac_E,&total_ac_V, R , x_est, y_est, z_est,FS_SV_r, FS_SV_z, FS_SH_t, FS_P_r, FS_P_z, Csv_r,Rpsv,Rpsh,Rpp,Csv_z,Csh,Cp_r,Cp_z,offset_p,offset_s,tpa,tsa,&min_offtp,kappa_sta,Ysv_r,Ysh,Ysv_z,Yp_r,Yp_z,SFsv_r,SFsh,SFsv_z, SFp_r, SFp_z,SN,FT_SV,FT_P,FT_SH,FT_P_SV,FT_H,  FT_V, ap, bp, as, bs, theta,   asv_r, asv_z, ash, ap_r, ap_z, phi, final_size,Gamma, R_distance);
 
+	if(calcfs == 2)
+	{
+		calacv(0,stat, &total_ac_N_nofs,&total_ac_E_nofs,&total_ac_V_nofs, R , x_est, y_est, z_est,FS_SV_r, FS_SV_z, FS_SH_t, FS_P_r, FS_P_z, Csv_r,Rpsv,Rpsh,Rpp,Csv_z,Csh,Cp_r,Cp_z,offset_p,offset_s,tpa,tsa,&min_offtp,kappa_sta,Ysv_r,Ysh,Ysv_z,Yp_r,Yp_z,SFsv_r,SFsh,SFsv_z, SFp_r, SFp_z,SN,FT_SV,FT_P,FT_SH,FT_P_SV,FT_H,  FT_V, ap, bp, as, bs, theta,   asv_r, asv_z, ash, ap_r, ap_z, phi, final_size,Gamma, R_distance);
+	}
 
 
 	pthread_mutex_lock(&mutex2);
 	fprintf(fppp,"%s\t%.5f\n",sta_name,min_offtp);
 	pthread_mutex_unlock(&mutex2);
 
-	char output_acc[50];
-	sprintf(output_acc,"output/synt_%s.dat",sta_name);
+	char output_acc[512];
+	snprintf(output_acc,sizeof(output_acc),"output/synt_%s.dat",sta_name);
 
 
 	FILE *fp = fopen(output_acc,"w");
@@ -364,19 +380,32 @@ void generateWaveform(char *sta_name, char *sta_model, int stat, double x_est, d
 	
 	for(i=0;i<final_size;i++)
 	{
-		fprintf(fp,"%.8f\t%.8f\t%.8f\n",total_ac_N[i],total_ac_E[i],total_ac_V[i]);
+		if(calcfs == 2)
+		{
+			fprintf(fp,"%.8f\t%.8f\t%.8f\t%.8f\t%.8f\t%.8f\n",
+				total_ac_N[i],total_ac_E[i],total_ac_V[i],
+				total_ac_N_nofs[i],total_ac_E_nofs[i],total_ac_V_nofs[i]);
+		}
+		else
+		{
+			fprintf(fp,"%.8f\t%.8f\t%.8f\n",total_ac_N[i],total_ac_E[i],total_ac_V[i]);
+		}
 	}
 
 	fclose(fp);
 
 
 
-	
-
 
 	free(total_ac_N);
 	free(total_ac_E);
 	free(total_ac_V);
+	if(calcfs == 2)
+	{
+		free(total_ac_N_nofs);
+		free(total_ac_E_nofs);
+		free(total_ac_V_nofs);
+	}
 
 
 	if(applyTF==1)

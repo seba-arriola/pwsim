@@ -299,7 +299,7 @@ double complex **globalmatrix(double k, double w, double cs[],double cp[],double
 	double complex **khalf=halfspace(cs[model_size-1],cp[model_size-1],beta1,beta2,rho_satf,k,w,1.0);
 	
 	
-	double complex **mlayer;
+	double complex **mlayer = NULL;
 	
 	for(j=0;j<model_size-1;j++)
 	{
@@ -317,7 +317,11 @@ double complex **globalmatrix(double k, double w, double cs[],double cp[],double
 				for(l=2*j;l<2*j+4;l++)
 					global_matrix[i][l]=global_matrix[i][l]+mlayer[i-2*j][l-2*j];
 		}
-			
+		
+		for(i=0;i<4;i++)
+			free(mlayer[i]);
+		free(mlayer);
+		mlayer = NULL;
 	}
 	
 	for(i=2*(model_size-1) ; i<2*(model_size-1)+2 ; i++)
@@ -325,14 +329,9 @@ double complex **globalmatrix(double k, double w, double cs[],double cp[],double
 			global_matrix[i][l]=global_matrix[i][l]+khalf[i-2*(model_size-1)][l-2*(model_size-1)];
 	
 	
-	for(i=0;i<4;i++)
-	{
-		if(i<2)
-			free(khalf[i]);
-		free(mlayer[i]);
-	}
+	for(i=0;i<2;i++)
+		free(khalf[i]);
 	free(khalf);
-	free(mlayer);
 	
 	return global_matrix;
 }
@@ -360,7 +359,7 @@ double complex ** SATF_P_SV(double *freq,int freq_size,double *vs_sta,double *vp
     double complex **K_inv;
     
     
-    double complex **ver_hor = (double complex**)malloc(2*sizeof(double complex*));
+	double complex **ver_hor = (double complex**)malloc(2*sizeof(double complex*));
 	
 	for(i=0;i<2;i++)
 		ver_hor[i]  = (double complex *)malloc(freq_size*sizeof(double complex));
@@ -369,6 +368,8 @@ double complex ** SATF_P_SV(double *freq,int freq_size,double *vs_sta,double *vp
 	
 	double complex *ula = (double complex*)malloc(freq_size*sizeof(double complex));
 	double complex *hor_aux = (double complex*)malloc(freq_size*sizeof(double complex));
+
+	int n = 2*(model_size-1)+2;
 	
 	for(i=0;i<freq_size;i++)
 	{
@@ -389,16 +390,27 @@ double complex ** SATF_P_SV(double *freq,int freq_size,double *vs_sta,double *vp
 		vectorfinal[0] =  conj(A*matrixfs[0][0]*sin(tp)*cexp(-I*(kx*xp+kz*zp)));
 		vectorfinal[1] = conj(-A*matrixfs[1][1]*I*cos(tp)*cexp(-I*(kx*xp+kz*zp)));
 		
-		K_inv=inverter(K, 2*(model_size-1)+2);
+		K_inv=inverter(K, n);
 		
-		u0  = K_inv[0][2*(model_size-1)]*vectorfinal[0] + K_inv[0][2*(model_size-1)+1]*vectorfinal[1];
-		u1  = K_inv[1][2*(model_size-1)]*vectorfinal[0] + K_inv[1][2*(model_size-1)+1]*vectorfinal[1];
-		upr = K_inv[2*(model_size-1)][2*(model_size-1)]*vectorfinal[0] + K_inv[2*(model_size-1)][2*(model_size-1)+1]*vectorfinal[1];
-		ula[i] = K_inv[2*(model_size-1)+1][2*(model_size-1)]*vectorfinal[0] + K_inv[2*(model_size-1)+1][2*(model_size-1)+1]*vectorfinal[1];
+		u0  = K_inv[0][n-2]*vectorfinal[0] + K_inv[0][n-1]*vectorfinal[1];
+		u1  = K_inv[1][n-2]*vectorfinal[0] + K_inv[1][n-1]*vectorfinal[1];
+		upr = K_inv[n-2][n-2]*vectorfinal[0] + K_inv[n-2][n-1]*vectorfinal[1];
+		ula[i] = K_inv[n-1][n-2]*vectorfinal[0] + K_inv[n-1][n-1]*vectorfinal[1];
 		
 		hor_aux[i]=u1;
 		ver_hor[1][i]=cabs( u0/upr );
 		
+		int r;
+		for(r=0;r<n;r++)
+		{
+			free(K[r]);
+			free(K_inv[r]);
+		}
+		free(K);
+		free(K_inv);
+		for(r=0;r<2;r++)
+			free(matrixfs[r]);
+		free(matrixfs);
 	}
 	
 	double complex cum_sum0=0.0;
@@ -419,6 +431,8 @@ double complex ** SATF_P_SV(double *freq,int freq_size,double *vs_sta,double *vp
  * */
 double complex * SATF_SH(double *freq,int freq_size,double *vs_sta,double *espesor_sta,int model_size,double am_sh, double rho_satf)
 {
+	(void)rho_satf;
+
 	int i,j;
 	double complex *delta = (double complex *)malloc((model_size-1)*sizeof(double complex) );
 	double complex *E = (double complex *)malloc(freq_size*sizeof(double complex) );

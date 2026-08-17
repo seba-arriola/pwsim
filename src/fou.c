@@ -46,7 +46,8 @@ void FN(int TS,int Fs,double R_hypo,double complex out[])
 	fftw_plan pt;
 
 	in = (double complex *) malloc(sizeof(double complex) * nfft);
-
+	for(i=0;i<nfft;i++)
+		in[i]=0.0;
 
 	for(i=0;i<TS;i++)
 	{
@@ -83,9 +84,12 @@ void FN(int TS,int Fs,double R_hypo,double complex out[])
 
 	factor=sqrt(factor);
 
-	for(i=0;i<nfft;i++)
+	if(factor>0.0)
 	{
-		out[i]=out[i]/factor;
+		for(i=0;i<nfft;i++)
+		{
+			out[i]=out[i]/factor;
+		}
 	}
 
 	free(t);

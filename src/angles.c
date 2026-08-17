@@ -6,6 +6,7 @@
  * */
 void angles(double xst, double xso, double yst, double yso, double zst,  double zso, double *theta, double *phi, double *d_total,double *tp, double *ts, double *ie )
 {
+	(void)zst;
 
 	int i,j,c;
 
@@ -45,9 +46,9 @@ void angles(double xst, double xso, double yst, double yso, double zst,  double 
 		espesor[i]=prof[i]-prof[i-1];
 
 
-	int indexs;
+	int indexs = M-1;
 
-	if (-1.0*zso>prof[M-1])
+	if (-1.0*zso>=prof[M-1])
 	{
 		indexs = M-1;
 	}
@@ -102,7 +103,10 @@ void angles(double xst, double xso, double yst, double yso, double zst,  double 
 			}
 			else
 			{
-				io[c]=asin(vs[indexs-c]*sin(io[c-1])/vs[indexs+1-c]);
+				double ratio = vs[indexs-c]*sin(io[c-1])/vs[indexs+1-c];
+				if(ratio>1.0) ratio=1.0;
+				if(ratio<-1.0) ratio=-1.0;
+				io[c]=asin(ratio);
 			}
 			if(c==0)
 			{

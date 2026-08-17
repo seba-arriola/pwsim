@@ -84,7 +84,8 @@ void merge(double arr[], int l, int m, int r)
     int i, j, k; 
     int n1 = m - l + 1; 
     int n2 =  r - m; 
-    double L[n1], R[n2]; 
+    double *L = (double*)malloc(n1*sizeof(double));
+    double *R = (double*)malloc(n2*sizeof(double));
 
     for (i = 0; i < n1; i++) 
         L[i] = arr[l + i]; 
@@ -125,6 +126,8 @@ void merge(double arr[], int l, int m, int r)
         k++; 
     }
     
+    free(L);
+    free(R);
     return;
 }
   
@@ -258,28 +261,30 @@ double complex ** interpolateFA(char *filename)
 	}
 	int i;
     int C=1; 
-    int lee;
     double A1,A2,A3;
-    do
+    while(fscanf(archivo,"%lf  %lf  %lf", &A1,&A2,&A3)==3)
     {
-		fscanf(archivo,"%lf  %lf  %lf", &A1,&A2,&A3);
-        lee=feof(archivo);
-        if (lee==1) break;  //stops if cannot read
         if(A1>f[nnyq-1])
         {
 			printf("Defined frequencies exceeds nyquist frequency\n");
 			exit(EXIT_FAILURE);
 		}
+        if(C >= F+1)
+        	break;
         ff[C]=A1;
 		Ah[C]=A2;
 		Av[C]=A3;
 
-		
         C++;
-
-    }while(1);
+    }
     fclose(archivo);
     
+    F = C-1;
+    if(F < 1)
+    {
+		printf("Frequency-amplifications file %s has no valid rows\n", filename);
+		exit(EXIT_FAILURE);
+	}
     
     ff[0]=-0.001;
 	Ah[0]=Ah[1];
@@ -307,6 +312,10 @@ double complex ** interpolateFA(char *filename)
 		Famps[1][i] = Av[C] + ((Av[C+1]-Av[C])/(ff[C+1]-ff[C])) * (f[i] - ff[C]);
 	
 	}
+	
+	free(ff);
+	free(Ah);
+	free(Av);
 	
 	return Famps;
 

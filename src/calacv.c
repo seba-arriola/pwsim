@@ -18,6 +18,12 @@ void calc_radpat(int wtd,double *Rpsv_factor,double *Rpsh_factor,double *Rpp_fac
         *Rpsh_factor=Rpsh_OH;
         *Rpp_factor=Rpp_OH;
         break;
+
+    default: //unknown value: fall back to per-subfault pattern
+        *Rpsv_factor=Rpsv[index];
+        *Rpsh_factor=Rpsh[index];
+        *Rpp_factor=Rpp[index] ;
+        break;
     }
 
     return;
@@ -40,24 +46,31 @@ void TFapplied(int applyTF, int stat, int index, double complex *aSFsv_r, double
 			return;
 			
 		case 1: //apply
-			switch(stat)
+			if(stat == 0)
 			{
-				case 1:
+				factor1 = 1.0;
+				factor2 = 1.0;
+				factor3 = 1.0;
+				factor4 = 1.0;
+				factor5 = 1.0;
+			}
+			else if(stat == 1)
+			{
 				factor1 =   creal(aFT_SV[index]) ;
 				factor2 =   creal(aFT_SH[index]) ;
 				factor3 =   creal(aFT_SV[index]) ;
 				factor4 =   creal(aFT_P[index])  ;
 				factor5 =   creal(aFT_P[index])  ;
-				
-				
-				case 2:
+			}
+			else if(stat == 2)
+			{
 				factor1 =   aFT_H[index] ;
 				factor2 =   aFT_H[index] ;
 				factor3 =   aFT_V[index] ;
 				factor4 =   aFT_H[index] ;
 				factor5 =   aFT_V[index] ;
-				
 			}
+			break;
 		
 	}
 	
@@ -72,7 +85,9 @@ void TFapplied(int applyTF, int stat, int index, double complex *aSFsv_r, double
 //Calculate ace or vel
 void calacv(int usar_FS, int stat, double **total_ac_N,double **total_ac_E,double **total_ac_V,double *R,double x_est, double y_est, double z_est,double FS_SV_r, double FS_SV_z, double FS_SH_t, double FS_P_r,double FS_P_z, double *Csv_r,double *Rpsv,double *Rpsh,double *Rpp,double *Csv_z,double *Csh,double *Cp_r,double *Cp_z,double *offset_p,double *offset_s,double *tpa,double *tsa,double *min_offtp, double kappa_sta,double *Ysv_r,double *Ysh,double *Ysv_z,double *Yp_r,double *Yp_z,double complex *SFsv_r,double complex *SFsh, double complex *SFsv_z, double complex *SFp_r, double complex *SFp_z,double complex *SN,double complex *FT_SV,double complex *FT_P,double complex *FT_SH,double complex **FT_P_SV,double complex *FT_H,double complex *FT_V,double *ap,double *bp,double *as,double *bs,double *theta,double *asv_r,double *asv_z,double *ash,double *ap_r,double *ap_z, double *phi, int final_size, double Gamma, double R_aux_jb)
 {
-	
+	(void)FT_P_SV;
+	(void)R_aux_jb;
+
 	//create variables for this local function
 	double EPsvr, EPsh, EPsvz;
 	double EPpr, EPpz;

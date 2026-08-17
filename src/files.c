@@ -30,12 +30,17 @@ int removeEmptyLines(char *path){
 		return -1;
 	}
     
-    char temp_file[500];
+    char temp_file[512];
     
-    strcpy(temp_file,path);
-    strcat(temp_file,"_tmp");
+    snprintf(temp_file, sizeof(temp_file), "%s_tmp", path);
     
     tempFile = fopen(temp_file, "w");
+    if(tempFile == NULL)
+    {
+		printf("Cannot create temporary file %s\n", temp_file);
+		fclose(srcFile);
+		return -1;
+	}
 	
     char buffer[BUFFER_SIZE];
 
@@ -60,20 +65,17 @@ int removeEmptyLines(char *path){
  * */
 int countLines(char *filename)
 {
-	FILE *fp; 
+	FILE *fp = fopen(filename, "r");
     int count = 0;  // Line counter 
 	char line[400];
-	if(removeEmptyLines(filename)<0)
-		return 0;
-    fp = fopen(filename, "r");
     
     if(fp == NULL)
     {
 		return 0;
 	}
 	
-    while (!feof (fp))
-		if (fgets(line, sizeof (line), fp))
+    while (fgets(line, sizeof (line), fp))
+		if(!isEmpty(line))
 			count++;
 
     fclose(fp); 

@@ -13,153 +13,153 @@
 
 
 //pthread for mutual exclusion in fftw3 plans and writing P times
-pthread_mutex_t mutex;
-pthread_mutex_t mutex2;
+extern pthread_mutex_t mutex;
+extern pthread_mutex_t mutex2;
 
 //File for P waves times
-FILE *fppp;
+extern FILE *fppp;
 
 //Number of points in the finite fault
-int N;
+extern int N;
 
 //number of layers in velocity model
-int M;
+extern int M;
 
 //number of stations 
-int V;
+extern int V;
 
 //number of subfaults with slip>0
-int NR;
+extern int NR;
 
 //calculate amplification factors due to the free surface
-int calcfs;
+extern int calcfs;
 
 //seismic moment and moment magnitude
-double M0;
-double Mw;
+extern double M0;
+extern double Mw;
 
 //Medium parameters
-double alpha;
-double beta;
-double rho;
+extern double alpha;
+extern double beta;
+extern double rho;
 
 
 
 
 //Quality factors
-double Qso,Qpo;
-double Qexp;
-int N_attpar;
+extern double Qso,Qpo;
+extern double Qexp;
+extern int N_attpar;
 //stress drop
-double dsigma;
+extern double dsigma;
 
-double *R_att;
-double *R_att_aux_1;
-double *p_att;
+extern double *R_att;
+extern double *R_att_aux_1;
+extern double *p_att;
 
 //hipocenter coordinates in meters, xhip=yhip=0.0
-double xhip, yhip, zhip;
+extern double xhip, yhip, zhip;
 
 //corner frequency, according to Brune
-double f0s, f0p;
+extern double f0s, f0p;
 
 //total time in seconds for waveforms
-int waveform_time;
+extern int waveform_time;
 
 //Numbers of cores to use.
-int n_cores;
+extern int n_cores;
 
-int nfft;
-int nnyq;
-int Fs;
-int T_S;
+extern int nfft;
+extern int nnyq;
+extern int Fs;
+extern int T_S;
 
 //Hypocenter geographical coordinates, used as reference 
-double ALATO;
-double ALNGO;
+extern double ALATO;
+extern double ALNGO;
 
 //parameters for filtering acceleration waveforms
-int filter_acc;
-double fmin_acc;
-double fmax_acc;
+extern int filter_acc;
+extern double fmin_acc;
+extern double fmax_acc;
 
 //parameters for filtering velocity waveforms
-int velocity;
-int filter_vel;
-double fmin_vel;
-double fmax_vel;
+extern int velocity;
+extern int filter_vel;
+extern double fmin_vel;
+extern double fmax_vel;
 
 //number of noise waveform to take an average
-int N_simul;
+extern int N_simul;
 
 //
-int only_SH;
+extern int only_SH;
 
 //apply transfer functions
-int applyTF;
-double rho_tf;
-double am_p,am_sv,am_sh;
+extern int applyTF;
+extern double rho_tf;
+extern double am_p,am_sv,am_sh;
 //input filenames
-char finite_fault[50];
-char vel_model[50];
-char stations_file[50];
-char envelope_file[50];
-char attenuation_file[50];
-double envelope_e;
-double envelope_n;
-double envelope_ft;
+extern char finite_fault[512];
+extern char vel_model[512];
+extern char stations_file[512];
+extern char envelope_file[512];
+extern char attenuation_file[512];
+extern double envelope_e;
+extern double envelope_n;
+extern double envelope_ft;
 
 //Fault parameters
-double *X;
-double *Y;
-double *Z;
-double *slip;
-double *strike;
-double *dip;
-double *rake;
-double *length;
-double *width;
-double *Tr;
-double *trup;
-double *m0;
-double mean_dip;
-double mean_rake;
-double mean_length;
-double mean_width;
-double sum_slip;
+extern double *X;
+extern double *Y;
+extern double *Z;
+extern double *slip;
+extern double *strike;
+extern double *dip;
+extern double *rake;
+extern double *length;
+extern double *width;
+extern double *Tr;
+extern double *trup;
+extern double *m0;
+extern double mean_dip;
+extern double mean_rake;
+extern double mean_length;
+extern double mean_width;
+extern double sum_slip;
 
 //corner frequencies for every subfault, P and S waves
-double *fcs;
-double *fcp;
-double *f;
+extern double *fcs;
+extern double *fcp;
+extern double *f;
 
 //Radiation pattern to use
-int radpat;
+extern int radpat;
 
 // Average radiation patterns according to Onishi Horike
-double Rpp_OH;
-double Rpsv_OH;
-double Rpsh_OH;
+extern double Rpp_OH;
+extern double Rpsv_OH;
+extern double Rpsh_OH;
 
 //global velocity model parameters
-double *prof;
-double *vp;
-double *vs;
+extern double *prof;
+extern double *vp;
+extern double *vs;
 
 //stations parameters
-int sample;
-double *ruido;
-int *TFstat;
-char **sta_names;
-char **sta_models;
-double *sta_x;
-double *sta_y;
-double *sta_z;
-double *kappa;
-double *gamma_sta;
+extern int sample;
+extern double *ruido;
+extern int *TFstat;
+extern char **sta_names;
+extern char **sta_models;
+extern double *sta_x;
+extern double *sta_y;
+extern double *sta_z;
+extern double *kappa;
+extern double *gamma_sta;
 
 //seed for randoms
-int seed;
+extern int seed;
 
 //thread struct
 typedef struct
