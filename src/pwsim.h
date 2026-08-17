@@ -1,3 +1,6 @@
+#ifndef PWSIM_H
+#define PWSIM_H
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -6,10 +9,15 @@
 #include <time.h>
 #include <complex.h>
 #include <fftw3.h>
-#include <sys/types.h>
 #include <sys/stat.h>
-#include <unistd.h>
-#include <malloc.h>
+
+// Physical and numerical constants
+#define DEG2RAD    (M_PI / 180.0)
+#define RAD2DEG    (180.0 / M_PI)
+#define M_PER_KM   1000.0          // metres per kilometre
+#define BRUNE_CONST 4.9e6          // Brune source constant (corner frequency)
+#define ATT_R_MAX  999999999.9     // attenuation distance sentinel (km)
+#define LARGE_TIME 999999.0        // large initial travel-time value
 
 
 //pthread for mutual exclusion in fftw3 plans and writing P times
@@ -25,11 +33,8 @@ extern int N;
 //number of layers in velocity model
 extern int M;
 
-//number of stations 
+//number of stations
 extern int V;
-
-//number of subfaults with slip>0
-extern int NR;
 
 //calculate amplification factors due to the free surface
 extern int calcfs;
@@ -74,20 +79,9 @@ extern int nnyq;
 extern int Fs;
 extern int T_S;
 
-//Hypocenter geographical coordinates, used as reference 
+//Hypocenter geographical coordinates, used as reference
 extern double ALATO;
 extern double ALNGO;
-
-//parameters for filtering acceleration waveforms
-extern int filter_acc;
-extern double fmin_acc;
-extern double fmax_acc;
-
-//parameters for filtering velocity waveforms
-extern int velocity;
-extern int filter_vel;
-extern double fmin_vel;
-extern double fmax_vel;
 
 //number of noise waveform to take an average
 extern int N_simul;
@@ -98,7 +92,7 @@ extern int only_SH;
 //apply transfer functions
 extern int applyTF;
 extern double rho_tf;
-extern double am_p,am_sv,am_sh;
+extern double damping_p,damping_sv,damping_sh;
 //input filenames
 extern char finite_fault[512];
 extern char vel_model[512];
@@ -164,59 +158,85 @@ extern int seed;
 //thread struct
 typedef struct
 {
-	int starting;
-	int ending;
-	pthread_t pid;
+    int starting;
+    int ending;
+    pthread_t pid;
 } Args;
+
+// Per-station working context shared between generateWaveform and calacv.
+typedef struct
+{
+    // station-specific scalars
+    int stat;
+    double x_est, y_est, z_est, kappa_sta, Gamma;
+    int final_size;
+    double min_offtp;
+
+    // per-subfault arrays (length N)
+    double *R;
+    double *Csv_r, *Csv_z, *Csh, *Cp_r, *Cp_z;
+    double *Rpp, *Rpsv, *Rpsh;
+    double *theta, *phi, *dtotal, *i_e;
+    double *tpa, *tsa, *offset_p, *offset_s;
+    double *ap, *bp, *as, *bs;
+
+    // Fourier spectra (length nfft)
+    double complex *SFsv_r, *SFsh, *SFsv_z, *SFp_r, *SFp_z, *SN;
+
+    // acceleration spectra (length nnyq)
+    double *Ysv_r, *Ysh, *Ysv_z, *Yp_r, *Yp_z;
+
+    // time-domain waveforms (length T_S)
+    double *asv_r, *asv_z, *ash, *ap_r, *ap_z;
+
+    // transfer-function arrays (owned locally in generateWaveform)
+    double complex *FT_SV, *FT_P, *FT_SH, *FT_H, *FT_V;
+} WaveContext;
 
 #define BUFFER_SIZE 1000
 
 int isEmpty(const char *str);
 
-int removeEmptyLines(char *path);
+int removeEmptyLines(const char *path);
 
 /* function that counts lines in a text file
  * Receives the name of the text file
  * */
-int countLines(char *filename);
+int countLines(const char *filename);
+
+/* Reads the next "key value" pair from an open stream, skipping blank and
+ * comment lines. Returns 1 if a pair was read, 0 at end of file. */
+int nextKeyValue(FILE *fp, char *key, char *value);
 
 
 /* Gauss-Kruger's method to convert lat-lon to x-y
- * Receives two pointers x and y to store the x-y calculated coordinates  
+ * Receives two pointers x and y to store the x-y calculated coordinates
  * and the longitude lon_x and latitude lat_y to be converted
  * */
 void geoToXY(double *x, double *y, double lon_x, double lat_y);
 
 
 /* Gauss-Kruger's method to convert x-y to lat-lon
- * Receives two pointers ALNGDG and ALATDG to store the lon-lat 
+ * Receives two pointers ALNGDG and ALATDG to store the lon-lat
  * calculated coordinates and the longitude lon_x and latitude lat_y
  * to be converted
  * */
 void xyToGEO(double *ALNGDG, double *ALATDG, double x, double y);
 
 
-/* Function to generate additive white Gaussian Noise samples with zero mean and a standard deviation of 1. 
+/* Function to generate additive white Gaussian Noise samples with zero mean and a standard deviation of 1.
  * This code was developed by Cagri Tanriover and published in https://www.embeddedrelated.com/
 */
 double AWGN_generator();
 
 
-/* Initializes subfaults, global velocity model and stations parameters 
+/* Initializes subfaults, global velocity model and stations parameters
  * from files.
  * */
 void readInputs();
 
 
-void readParams(int argcasd, char *argvasd);
-
-
-
-/* Function to remove linear trends.
- * It receives an array with its size and return a pointer to a new 
- * array with the linear trend removed.
- * */
-double *detrend(double a[],int a_size);
+void readParams(int argcasd, const char *argvasd);
 
 
 
@@ -231,7 +251,7 @@ int nextpow2(int x);
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
  * A standard implementation of mergesort algorithm and iterative
- * binary search. The three function was mainly taken from 
+ * binary search. The three function was mainly taken from
  * geeksforgeeks.org
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
@@ -240,7 +260,7 @@ int nextpow2(int x);
 
 void merge(double arr[], int l, int m, int r);
 
- 
+
 void mergeSort(double arr[], int l, int r);
 
 
@@ -253,7 +273,7 @@ int binarySearch(double arr[], int l, int r, double x);
 ///////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////*/
 
-/* Falta descripcion de la funcion*/
+/* Number of subfaults that pulse simultaneously with subfault `i`. */
 int NumberOfPulsingSubs(int i);
 
 /* Function to calculate radiation patterns, seismic moment and corner
@@ -261,36 +281,36 @@ int NumberOfPulsingSubs(int i);
  * */
 void calc();
 
-/* Function to calculate the angle of incidence and the angle of coordinate's rotation 
- * Receives the station coordinates and subfault coordinates, and pointers to 
+/* Function to calculate the angle of incidence and the angle of coordinate's rotation
+ * Receives the station coordinates and subfault coordinates, and pointers to
  * variables which stores the calculated angles.
  * */
 void angles(double xst, double xso, double yst, double yso, double zst,  double zso, double *theta, double *phi, double *d_total,double *tp, double *ts, double *i_e );
 
-/* Function to calcule the slip amplification from the arrival of Sv waves at surface.
+/* Function to calculate the slip amplification from the arrival of Sv waves at surface.
  * Receives an incidence angle and two pointers for storing vertical and radial
  * amplification
  * */
 void FS_SV(double theta, double *AR, double *AZ);
 
-/* Function to calcule the slip amplification from the arrival of P waves at surface.
+/* Function to calculate the slip amplification from the arrival of P waves at surface.
  * Receives an incidence angle and two pointers for storing vertical and radial
  * amplification
  * */
 void FS_P(double theta, double *AR, double *AZ);
 
 
-/* Function to calcule the Fourier transform of a tappered white noise window
+/* Function to calculate the Fourier transform of a tapered white noise window
  * Receives the number of points in the time window, the sample frequency,
  * distance to hypocenter and moment magnitude
  * */
 void FN(int TS,int Fs,double R_hypo,double complex out[]);
 
-/* Function to calcule the geometric and anelastic attenuation
+/* Function to calculate the geometric and anelastic attenuation
  * */
 double P(double f,double R,double Q0,double v);
 
-/* 
+/*
  * Term related to filtering high frequency at/near surface
  * */
 double D(double f, double kappa_sta);
@@ -316,8 +336,8 @@ double *offset(double t0,double a[],double Fs,int a_size,int final_size);
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
  * A standard implementation to find the inverse of a complex square matrix
- * using Gauss-Jordan elimination algorithm. 
- * The base of this code was taken from codesansar.com and modified for 
+ * using Gauss-Jordan elimination algorithm.
+ * The base of this code was taken from codesansar.com and modified for
  * using arbitrary complex matrix size.
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
@@ -332,18 +352,18 @@ double complex** inverter(double complex**a, int n);
 /////////////////////////////////////////////////////////////////////*/
 
 
-/* Auxiliary function for P and SV transfer functions. It returns a 
+/* Auxiliary function for P and SV transfer functions. It returns a
  * 2x2 complex matrix.
  * */
 double complex**halfspace(double cs,double cp,double ds,double dp,double rho_hs,double k,double w,double fact);
 
-/* Auxiliary function for P and SV transfer functions. It returns a 
+/* Auxiliary function for P and SV transfer functions. It returns a
  * 4x4 complex matrix.
  * */
 double complex **stiflayer(double k,double wc,double ccs,double ccp,double h,double rho_sti,double ds,double dp);
 
 
-/* Auxiliary function for P and SV transfer functions. It returns a 
+/* Auxiliary function for P and SV transfer functions. It returns a
  * complex matrix which size depends on the local velocity model.
  * */
 double complex **globalmatrix(double k, double w, double cs[],double cp[],double h[],int model_size, double rho_satf,double beta1, double beta2);
@@ -356,19 +376,17 @@ double complex smooth(double complex *A,int A_size, int ind, double complex *cum
 
 /* Calculates the P and SV transfer functions
  * */
-double complex ** SATF_P_SV(double *freq,int freq_size,double *vs_sta,double *vp_sta,double *espesor_sta,int model_size,double am_p, double am_sv,double angle,double rho_satf);
+double complex ** SATF_P_SV(double *freq,int freq_size,double *vs_sta,double *vp_sta,double *espesor_sta,int model_size,double damping_p, double damping_sv,double angle,double rho_satf);
 
 /* Calculates the SH transfer function
  * */
-double complex * SATF_SH(double *freq,int freq_size,double *vs_sta,double *espesor_sta,int model_size,double am_sh, double rho_satf);
+double complex * SATF_SH(double *freq,int freq_size,double *vs_sta,double *espesor_sta,int model_size,double damping_sh, double rho_satf);
 
 /* Function to generate the acceleration and integrated velocity waveforms, which are
  * written to disk.
- * Receives and station name, a sample frequency, the station coordinates and the 
- * amount of points in the generated waveforms (this is function of the total time
- * and the Fs).
+ * Receives a station name, the local model path, and a per-station working context.
  * */
-void generateWaveform(char *sta_name, char *sta_model, int stat, double x_est, double y_est, double z_est, double kappa_sta,double *R, double *Csv_r,double *Csv_z,double *Csh,double *Cp_r,double *Cp_z,double *phi,double *theta,double *dtotal,double *Rpp,double *Rpsv,double *Rpsh,double *i_e,double *tpa,double *tsa,double *offset_p,double *offset_s,double *ap,double *bp,double *as,double *bs,double complex *SFsv_r ,double complex *SFsh, double complex *SFsv_z, double complex *SFp_r, double complex *SFp_z,double complex *SN,double *Ysv_r,double *Ysh,double *Ysv_z,double *Yp_r,double *Yp_z,double *asv_r,double *asv_z,double *ash,double *ap_r,double *ap_z, double Gamma );
+void generateWaveform(const char *sta_name, const char *sta_model, WaveContext *w);
 
 
 //thread function to calculate waveforms in different cores
@@ -378,7 +396,9 @@ void CalculateWaveform(int s, int e);
 void *generateWaveform_thread(void *ptr);
 
 //interpolate transfers functions amplitudes provided manually by user
-double complex ** interpolateFA(char *filename);
+double complex ** interpolateFA(const char *filename);
 
-//Calculate ace or vel
-void calacv(int usar_FS, int stat, double **total_ac_N,double **total_ac_E,double **total_ac_V,double *R,double x_est, double y_est, double z_est,double FS_SV_r, double FS_SV_z, double FS_SH_t, double FS_P_r,double FS_P_z, double *Csv_r,double *Rpsv,double *Rpsh,double *Rpp,double *Csv_z,double *Csh,double *Cp_r,double *Cp_z,double *offset_p,double *offset_s,double *tpa,double *tsa,double *min_offtp, double kappa_sta,double *Ysv_r,double *Ysh,double *Ysv_z,double *Yp_r,double *Yp_z,double complex *SFsv_r,double complex *SFsh, double complex *SFsv_z, double complex *SFp_r, double complex *SFp_z,double complex *SN,double complex *FT_SV,double complex *FT_P,double complex *FT_SH,double complex **FT_P_SV,double complex *FT_H,double complex *FT_V,double *ap,double *bp,double *as,double *bs,double *theta, double *asv_r,double *asv_z,double *ash,double *ap_r,double *ap_z,double *phi, int final_size, double Gamma, double R_aux_jb);
+//Calculate acceleration waveforms
+void calacv(int usar_FS, double **total_ac_N, double **total_ac_E, double **total_ac_V, WaveContext *w);
+
+#endif // PWSIM_H
