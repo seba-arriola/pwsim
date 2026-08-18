@@ -197,8 +197,6 @@ typedef struct
 
 int isEmpty(const char *str);
 
-int removeEmptyLines(const char *path);
-
 /* function that counts lines in a text file
  * Receives the name of the text file
  * */

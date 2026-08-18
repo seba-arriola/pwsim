@@ -4,6 +4,129 @@
 #include <malloc.h>
 #endif
 
+typedef enum { PT_INT, PT_DBL, PT_STR } ParamType;
+
+typedef struct
+{
+    const char *key;
+    ParamType   type;
+    double      scale;
+    void       *target;
+} ParamDef;
+
+static const ParamDef param_defs[] =
+{
+    { "Mw",               PT_DBL, 1.0,       &Mw },
+    { "alpha",            PT_DBL, 1.0,       &alpha },
+    { "beta",             PT_DBL, 1.0,       &beta },
+    { "rho",              PT_DBL, 1.0,       &rho },
+    { "dsigma",           PT_DBL, 1.0,       &dsigma },
+    { "lathip",           PT_DBL, 1.0,       &ALATO },
+    { "lonhip",           PT_DBL, 1.0,       &ALNGO },
+    { "zhip",             PT_DBL, -M_PER_KM, &zhip },
+    { "ffm",              PT_STR, 0.0,        finite_fault },
+    { "velmodel",         PT_STR, 0.0,        vel_model },
+    { "threads",          PT_INT, 0.0,        &n_cores },
+    { "stations",         PT_STR, 0.0,        stations_file },
+    { "ttime",            PT_INT, 0.0,        &waveform_time },
+    { "sps",              PT_INT, 0.0,        &sample },
+    { "applyTF",          PT_INT, 0.0,        &applyTF },
+    { "b_p",              PT_DBL, 1.0,        &damping_p },
+    { "b_sv",             PT_DBL, 1.0,        &damping_sv },
+    { "b_sh",             PT_DBL, 1.0,        &damping_sh },
+    { "rho_tf",           PT_DBL, 1000.0,     &rho_tf },
+    { "seed",             PT_INT, 0.0,        &seed },
+    { "radpat",           PT_INT, 0.0,        &radpat },
+    { "calcfs",           PT_INT, 0.0,        &calcfs },
+    { "N_simul",          PT_INT, 0.0,        &N_simul },
+    { "only_SH",          PT_INT, 0.0,        &only_SH },
+    { "envelope_file",    PT_STR, 0.0,        envelope_file },
+    { "attenuation_file", PT_STR, 0.0,        attenuation_file },
+};
+#define N_PARAM_DEFS (sizeof(param_defs) / sizeof(param_defs[0]))
+
+static const ParamDef envelope_defs[] =
+{
+    { "e",  PT_DBL, 1.0, &envelope_e },
+    { "n",  PT_DBL, 1.0, &envelope_n },
+    { "ft", PT_DBL, 1.0, &envelope_ft },
+};
+#define N_ENVELOPE_DEFS (sizeof(envelope_defs) / sizeof(envelope_defs[0]))
+
+static void setParam(const ParamDef *def, const char *value)
+{
+    switch(def->type)
+    {
+    case PT_INT:
+        *(int*)def->target = atoi(value);
+        break;
+    case PT_DBL:
+        *(double*)def->target = atof(value) * def->scale;
+        break;
+    case PT_STR:
+        strcpy((char*)def->target, value);
+        break;
+    }
+}
+
+/* Parses a "key value" file applying `defs`. Calls `onUnknown` for every key
+ * not found in the table. Returns 0 on success, -1 if the file cannot be
+ * opened (the caller decides how to report it). */
+static int parseKeyValues(const char *path, const ParamDef *defs, size_t ndefs,
+                          void (*onUnknown)(const char *key))
+{
+    FILE *fr = fopen(path, "rt");
+    if(fr == NULL)
+        return -1;
+
+    char tmpstr1[256];
+    char tmpstr2[256];
+
+    while(nextKeyValue(fr, tmpstr1, tmpstr2))
+    {
+        size_t i;
+        for(i = 0; i < ndefs; i++)
+        {
+            if(strcmp(tmpstr1, defs[i].key) == 0)
+            {
+                setParam(&defs[i], tmpstr2);
+                break;
+            }
+        }
+        if(i == ndefs)
+            onUnknown(tmpstr1);
+    }
+
+    fclose(fr);
+    return 0;
+}
+
+static void unknownParam(const char *key)
+{
+    printf("Unrecognized parameter : \"%s\"\n", key);
+    exit(EXIT_FAILURE);
+}
+
+static void unknownEnvelopeParam(const char *key)
+{
+    printf("Unrecognized parameter for envelope: \"%s\"\n"
+           "using default values\ne=0.2\nn=0.05\nft=2.0\n", key);
+    envelope_e = 0.2;
+    envelope_n = 0.05;
+    envelope_ft = 2.0;
+}
+
+static FILE *openRequiredFile(const char *path, const char *what)
+{
+    FILE *fp = fopen(path, "rt");
+    if(fp == NULL)
+    {
+        printf("%s file %s cannot be opened\n", what, path);
+        exit(EXIT_FAILURE);
+    }
+    return fp;
+}
+
 /* Initializes subfaults, global velocity model and stations parameters
  * from files.
  * */
@@ -24,12 +147,7 @@ void readInputs()
     Tr=(double*)malloc(N*sizeof(double));
     trup=(double*)malloc(N*sizeof(double));
 
-    FILE    *fp = fopen(finite_fault,"rt");
-    if(fp == NULL)
-    {
-        printf("Finite fault model file %s cannot be opened\n", finite_fault);
-        exit(EXIT_FAILURE);
-    }
+    FILE    *fp = openRequiredFile(finite_fault, "Finite fault model");
     double lon, lat, depth, sub_slip, strike_deg, dip_deg, rake_deg, sub_width, sub_length, break_time;
     int nsub = 0;
     double x_aux,y_aux;
@@ -89,12 +207,7 @@ void readInputs()
     vp=(double*)malloc(M*sizeof(double));
     vs=(double*)malloc(M*sizeof(double));
 
-    fp = fopen(vel_model,"rt");
-    if(fp == NULL)
-    {
-        printf("Velocity model file %s cannot be opened\n", vel_model);
-        exit(EXIT_FAILURE);
-    }
+    fp = openRequiredFile(vel_model, "Velocity model");
     int nlay=0;
 
     double layer_depth, layer_vp, layer_vs;
@@ -144,13 +257,7 @@ void readInputs()
     char model_path[512];
     int apply_tf;
 
-    fp = fopen(stations_file,"rt");
-
-    if(fp == NULL)
-    {
-        printf("Stations file %s cannot be opened\n", stations_file);
-        exit(EXIT_FAILURE);
-    }
+    fp = openRequiredFile(stations_file, "Stations");
     int nsta=0;
 
     double sta_lon, sta_lat, sta_elev, sta_kappa, sta_gamma;
@@ -242,136 +349,11 @@ void readParams(int argcasd, const char *argvasd)
         printf("ERROR: Usage: ./exec_file <input parameters file> \n");
         exit(EXIT_FAILURE);
     }
-    else
+
+    if(parseKeyValues(argvasd, param_defs, N_PARAM_DEFS, unknownParam) != 0)
     {
-        //reading input parameters file
-        removeEmptyLines(argvasd);
-        FILE * fr = fopen(argvasd, "rt");
-        if(fr == NULL){
-            printf("Parameters file %s not found\n", argvasd);
-            exit(EXIT_FAILURE);
-        }
-
-        char tmpstr1[256] ;
-        char tmpstr2[256] ;
-
-        //reading every parameter
-        while(nextKeyValue(fr, tmpstr1, tmpstr2))
-        {
-
-            if (strcmp(tmpstr1,"Mw")==0)
-            {
-                Mw = atof(tmpstr2);
-            }
-            else if (strcmp(tmpstr1,"alpha")==0)
-            {
-                alpha = atof(tmpstr2);
-            }
-            else if (strcmp(tmpstr1,"beta")==0)
-            {
-                beta = atof(tmpstr2);
-            }
-            else if (strcmp(tmpstr1,"rho")==0)
-            {
-                rho = atof(tmpstr2);
-            }
-            else if (strcmp(tmpstr1,"dsigma")==0)
-            {
-                dsigma = atof(tmpstr2);
-            }
-            else if (strcmp(tmpstr1,"lathip")==0)
-            {
-                ALATO = atof(tmpstr2);
-            }
-            else if (strcmp(tmpstr1,"lonhip")==0)
-            {
-                ALNGO = atof(tmpstr2);
-            }
-            else if (strcmp(tmpstr1,"zhip")==0)
-            {
-                zhip = -M_PER_KM*atof(tmpstr2);
-            }
-            else if (strcmp(tmpstr1,"ffm")==0)
-            {
-                strcpy(finite_fault,tmpstr2);
-            }
-            else if (strcmp(tmpstr1,"velmodel")==0)
-            {
-                strcpy(vel_model,tmpstr2);
-            }
-            else if (strcmp(tmpstr1,"threads")==0)
-            {
-                n_cores = atoi(tmpstr2);
-            }
-            else if (strcmp(tmpstr1,"stations")==0)
-            {
-                strcpy(stations_file,tmpstr2);
-            }
-            else if (strcmp(tmpstr1,"ttime")==0)
-            {
-                waveform_time = atoi(tmpstr2);
-            }
-            else if (strcmp(tmpstr1,"sps")==0)
-            {
-                sample = atoi(tmpstr2);
-            }
-            else if (strcmp(tmpstr1,"applyTF")==0)
-            {
-                applyTF = atoi(tmpstr2);
-            }
-            else if (strcmp(tmpstr1,"b_p")==0)
-            {
-                damping_p = atof(tmpstr2);
-            }
-            else if (strcmp(tmpstr1,"b_sv")==0)
-            {
-                damping_sv = atof(tmpstr2);
-            }
-            else if (strcmp(tmpstr1,"b_sh")==0)
-            {
-                damping_sh = atof(tmpstr2);
-            }
-            else if (strcmp(tmpstr1,"rho_tf")==0)
-            {
-                rho_tf = atof(tmpstr2)*1000.0;
-            }
-            else if (strcmp(tmpstr1,"seed")==0)
-            {
-                seed = atoi(tmpstr2);
-            }
-            else if (strcmp(tmpstr1,"radpat")==0)
-            {
-                radpat = atoi(tmpstr2);
-            }
-            else if (strcmp(tmpstr1,"calcfs")==0)
-            {
-                calcfs = atoi(tmpstr2);
-            }
-            else if (strcmp(tmpstr1,"N_simul")==0)
-            {
-                N_simul = atoi(tmpstr2);
-            }
-            else if (strcmp(tmpstr1,"only_SH")==0)
-            {
-                only_SH = atoi(tmpstr2);
-            }
-            else if (strcmp(tmpstr1,"envelope_file")==0)
-            {
-                strcpy(envelope_file,tmpstr2);
-            }
-            else if (strcmp(tmpstr1,"attenuation_file")==0)
-            {
-                strcpy(attenuation_file,tmpstr2);
-            }
-            else
-            {
-                printf("Unrecognized parameter : \"%s\"\n", tmpstr1);
-                exit(EXIT_FAILURE);
-            }
-        }
-
-        fclose(fr);
-
+        printf("Parameters file %s not found\n", argvasd);
+        exit(EXIT_FAILURE);
     }
 
 }
@@ -380,48 +362,14 @@ void readParams(int argcasd, const char *argvasd)
 
 void readEnvelope()
 {
-    //reading input parameters file
-    removeEmptyLines(envelope_file);
-    FILE * fr = fopen(envelope_file, "r");
-    if(fr == NULL)
+    if(parseKeyValues(envelope_file, envelope_defs, N_ENVELOPE_DEFS, unknownEnvelopeParam) != 0)
     {
         //Boore (2003) parameters
         printf("Envelope parameters file %s not found, using default values\ne=0.2\nn=0.05\nft=2.0\n", envelope_file);
         envelope_e = 0.2;   //input parameter
         envelope_n = 0.05;  //input parameter
         envelope_ft = 2.;
-        return;
     }
-
-    char tmpstr1[256] ;
-    char tmpstr2[256] ;
-
-    //reading every parameter
-    while(nextKeyValue(fr, tmpstr1, tmpstr2))
-    {
-
-        if (strcmp(tmpstr1,"e")==0)
-        {
-            envelope_e = atof(tmpstr2);
-        }
-        else if (strcmp(tmpstr1,"n")==0)
-        {
-            envelope_n = atof(tmpstr2);
-        }
-        else if (strcmp(tmpstr1,"ft")==0)
-        {
-            envelope_ft = atof(tmpstr2);
-        }
-        else
-        {
-            printf("Unrecognized parameter for envelope: \"%s\"\n using default values\ne=0.2\nn=0.05\nft=2.0\n", tmpstr1);
-            envelope_e = 0.2;   //input parameter
-            envelope_n = 0.05;  //input parameter
-            envelope_ft = 2.;
-        }
-    }
-
-    fclose(fr);
 
 }
 
